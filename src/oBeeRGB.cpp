@@ -1,6 +1,6 @@
 #include "oBeeRGB.h"
 
-oBeeRGB::oBeeRGB():Adafruit_NeoPixel(3, D1, WS2812)
+oBeeRGB::oBeeRGB():Adafruit_NeoPixel(3, D0, WS2812)
 {
     }
 

@@ -15,6 +15,7 @@ double poolingTime = 30000;
 
 unsigned long ms;
 unsigned long msLast;
+unsigned long msLastPooling;
 
 //Obtener desde System
 String oBeeID = "1";
@@ -39,6 +40,8 @@ LinkedList<fieldValue*> fieldList = LinkedList<fieldValue*>(); //Listado de valo
 
 SerialLogHandler logHandler;
 
+bool powerVariable = true;
+
 void setup() {
 
     Serial.begin(9600);
@@ -54,8 +57,8 @@ void setup() {
 
 
     Particle.subscribe(System.deviceID() +"/hook-response/Firebase", FireBaseHandler, MY_DEVICES);
-
     Particle.variable("publishTime", publishTime);
+
     //Particle.variable("losantId", losantId);
 
     Particle.function("rgbTrigger",TriggerRGBNotification); //Funcion para ALARMA RGB
@@ -453,7 +456,7 @@ void HandleDroneTemperature()
   {
     //IF Publish time - FOR TEMPERATURE ONLY WHEN PUBLISH! Evitar saturar el BUS OneWIRE -
     //Testear con varios sensores...
-    if(ms - msLast > poolingTime)
+    if(ms - msLastPooling > poolingTime || ms - msLast > publishTime)
     {
       DroneTemperature *droneTemperature;
 
@@ -464,6 +467,8 @@ void HandleDroneTemperature()
 
       oBeeOne.HandleWorker(oSensor, oEvent);
       oBeeOne.HandleNotification(oSensor, oEvent);
+
+      msLastPooling = ms;
 
       if(ms - msLast > publishTime || oEvent.triggerPublish)
       {
@@ -499,7 +504,10 @@ void HandleDroneAmbientTemp()
   {
     //IF Publish time - FOR TEMPERATURE ONLY WHEN PUBLISH! Evitar saturar el BUS -
     //Testear con varios sensores...
-    if(ms - msLast > poolingTime)
+
+    //Log.info("elapsedTime: " + String(ms - msLast));
+
+    if(ms - msLastPooling > poolingTime || ms - msLast > publishTime)
     {
       DroneAmbientTemp *droneAmbientTemp;
 
@@ -511,15 +519,21 @@ void HandleDroneAmbientTemp()
       oBeeOne.HandleWorker(oSensor, oEvent);
       oBeeOne.HandleNotification(oSensor, oEvent);
 
+      msLastPooling = ms;
+
+      Log.info("elapsedTime: " + String(ms - msLast));
+
       if(ms - msLast > publishTime || oEvent.triggerPublish)
       {
-          //Hay un evento para PUBLICAR
+        //Hay un evento para PUBLICAR
         eventToPublish = oEvent.triggerPublish;
 
         droneAmbientTemp->Publish(&oEvent);
 
         //GetValue
         Log.info("SetField-" + String(oSensor.fieldID) + ": "+ String(oEvent.value));
+        //GetValue
+        Log.info("SetField-" + String(oSensor.notificationFieldID) + ": "+ String(oEvent.acumulatedNotification));
 
         //Add to collection - LOSANT
         fieldValue *oValue = new fieldValue();
@@ -528,6 +542,15 @@ void HandleDroneAmbientTemp()
         oValue->value = oEvent.value;
 
         fieldList.add(oValue);
+
+        //Add to collection - LOSANT
+        fieldValue *oValueH = new fieldValue();
+
+        //AmbientTemp uses NotificacionField
+        oValueH->fieldID = oSensor.notificationFieldID;
+        oValueH->value = oEvent.acumulatedNotification;
+
+        fieldList.add(oValueH);
       }
     }
   }
@@ -551,6 +574,7 @@ void Publish()
       //Check for Power ADDED
       bool publishPowerFailure = false;
       bool publishPowerConnected = false;
+
       bool isPower = power.getHasPower();
 
       //Si no tiene poder, y la variable hasPower era TRUE, significa que se detecto CORTE - Hay que publicar
@@ -573,7 +597,6 @@ void Publish()
       {
           if (eventToPublish)
             Log.info("PUBLISH: Event to Publish");
-
           else
             Log.info("PUBLISH: Publish Time");
 
@@ -634,9 +657,11 @@ void Publish()
           if (publishPowerFailure || publishPowerConnected || !isPower)
           {
             //Battery 0 to 100
-            //root["b"] = String(fuel.getSoC(),2);
+            float batLevel = fuel.getSoC();
+            root["b"] = batLevel;
             //Stats TRUE or FALSE; Has Power
-            //root["s"] = String(power.getHasPower());
+            bool hasPower = power.getHasPower();
+            root["s"] = hasPower ? "1" : "0";
           }
 
 

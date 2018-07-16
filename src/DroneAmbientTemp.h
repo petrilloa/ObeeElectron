@@ -23,7 +23,7 @@ class DroneAmbientTemp : public Drone
         sensor_event _sensor_event;
         int _dbTime = 50;
 
-        float read();
+        void read(float&, float&);
         int wasActive();
         int activeFor(int ms);
 

@@ -17,6 +17,8 @@ void DroneAmbientTemp::SetUpSensor(sensor oSensor)
     _sensor.mode = oSensor.mode;
     _sensor.workerID = oSensor.workerID;
     _sensor.workerElapsedTime = oSensor.workerElapsedTime;
+    _sensor.notificationFieldID = oSensor.notificationFieldID;
+    _sensor.inverted = oSensor.inverted;
     _sensor.oledID = oSensor.oledID;
 
     pinMode(_sensor.pin, INPUT);
@@ -33,7 +35,6 @@ void DroneAmbientTemp::SetUpSensor(sensor oSensor)
 
     //dhtSensor = new DHT(_sensor.pin, "DHT11");
     Log.info("Sensor Temp/Hum: " + String(_sensor.pin));
-    Log.info("B - Sensor Temp/Hum: " + String(oSensor.pin));
 
     dhtSensor.setup(_sensor.pin, 11);
     dhtSensor.begin();
@@ -61,6 +62,7 @@ void DroneAmbientTemp::GetSensor(sensor *oSensor)
     oSensor->inverted = _sensor.inverted;
     oSensor->oledID = _sensor.oledID;
 
+
     //Serial.println("Digital Get Sensor 2");
 
 }
@@ -68,88 +70,73 @@ void DroneAmbientTemp::GetSensor(sensor *oSensor)
 void DroneAmbientTemp::GetEvent(sensor_event *oEvent)
 {
   /* Clear the event */
-  memset(oEvent, 0, sizeof(sensor_event));
+    memset(oEvent, 0, sizeof(sensor_event));
 
-  //Serial.println("GetEventTemp_1");
-  //Read the sensor to get Value and Times
-  float tempTemporal =  read();
+    //Serial.println("GetEventTemp_1");
+    //Read the sensor to get Value and Times
+    float tempTemporal =  0;
+    float humidityTemporal = 0;
 
-  //Read error
-  if (tempTemporal != -127)
-    _sensor_event.value = tempTemporal;
-  else
-    _sensor_event.value =  _sensor_event.lastValue;
+    read(tempTemporal, humidityTemporal);
+    //Read error
+    _sensor_event.value = (float)tempTemporal;
+    _sensor_event.acumulatedNotification = (float)humidityTemporal;
 
-  //TODO:
-  //Check notification
-  if(activeFor(_sensor.notificationElapsedTime))
-      _sensor_event.triggerNotification = true;
-  else
-      _sensor_event.triggerNotification = false;
+    //TODO:
+    //Check notification
+    if(activeFor(_sensor.notificationElapsedTime))
+        _sensor_event.triggerNotification = true;
+    else
+        _sensor_event.triggerNotification = false;
 
-  //Check worker
-  if(_sensor.workerID != -1 && activeFor(_sensor.workerElapsedTime))
-      _sensor_event.triggerWorker = true;
-  else
-      _sensor_event.triggerWorker = false;
+    //Check worker
+    if(_sensor.workerID != -1 && activeFor(_sensor.workerElapsedTime))
+        _sensor_event.triggerWorker = true;
+    else
+        _sensor_event.triggerWorker = false;
 
-  //Para Tempertura, si hay un delta de 5°, es NECESARIO Publicar!
-  //Usa el valor absoluto
-  if(abs(_sensor_event.value -_sensor_event.lastPublishedValue) > 5)
-  {
-      _sensor_event.triggerPublish = true;
-  }
-  else
-  {
-      _sensor_event.triggerPublish = false;
-  }
+    //Para Tempertura, si hay un delta de 5°, es NECESARIO Publicar!
+    //Usa el valor absoluto
+    if(abs(_sensor_event.value -_sensor_event.lastPublishedValue) > 5)
+    {
+        _sensor_event.triggerPublish = true;
+    }
+    else
+    {
+        _sensor_event.triggerPublish = false;
+    }
 
-  //Copy event
-  /* Copy object to return */
-  oEvent->value = _sensor_event.value;
-  oEvent->lastValue = _sensor_event.lastValue;
-  oEvent->acumulatedValue = _sensor_event.acumulatedValue;
-  oEvent->changed = _sensor_event.changed;
+    //Copy event
+    /* Copy object to return */
+    oEvent->value = _sensor_event.value;
+    oEvent->lastValue = _sensor_event.lastValue;
+    oEvent->acumulatedValue = _sensor_event.acumulatedValue;
+    oEvent->changed = _sensor_event.changed;
 
-  oEvent->lastPublishedValue = _sensor_event.lastPublishedValue;
+    oEvent->lastPublishedValue = _sensor_event.lastPublishedValue;
 
-  oEvent->timestamp = _sensor_event.timestamp;
-  oEvent->lastChange = _sensor_event.lastChange;
-  oEvent->triggerNotification = _sensor_event.triggerNotification;
-  oEvent->triggerWorker = _sensor_event.triggerWorker;
+    oEvent->timestamp = _sensor_event.timestamp;
+    oEvent->lastChange = _sensor_event.lastChange;
+    oEvent->triggerNotification = _sensor_event.triggerNotification;
+    oEvent->triggerWorker = _sensor_event.triggerWorker;
 
-  //Serial.println("_Event value: " + String(_sensor_event.value));
-  //Serial.println("_Event acumulated: " + String(_sensor_event.acumulatedValue));
+    oEvent->acumulatedNotification = _sensor_event.acumulatedNotification;
+    oEvent->triggerPublish = _sensor_event.triggerPublish;
+
+    //Serial.println("_Event value: " + String(_sensor_event.value));
+    //Serial.println("_Event acumulated: " + String(_sensor_event.acumulatedValue));
 
 }
 
-float DroneAmbientTemp::read()
+void DroneAmbientTemp::read(float &temp, float &humidity)
 {
-  //Serial.println("TempRead_1");
-  //Serial.println("Pin2: " + String(_sensor.pin2));
-  //delay(1000);
+  temp = dhtSensor.getTempCelcius();
+  Log.info("Read AMBIENT-TEMP");
+  Log.info("Temp/Hum TEMP: " + String(temp));
 
-  // Sensor readings may also be up to 2 seconds 'old' (its a
-  // very slow sensor)
-  float readValue = 0;
-
-  if(_sensor.pin2 == 1)
-  {
-    readValue = dhtSensor.getTempCelcius();
-    Log.info("Read AMBIENT-TEMP");
-  }
-  else if (_sensor.pin2 == 2)
-  {
-    readValue = dhtSensor.getHumidity();
-    Log.info("Read AMBIENT-HUM");
-  }
-
-
-  Log.info("Temp/Hum PIN: " + String(_sensor.pin));
-  Log.info("Temp/Hum VALUE: " + String(readValue));
-  //Serial.println("Temperature: " + String(readValue));
-
-  return readValue;
+  humidity = dhtSensor.getHumidity();
+  Log.info("Read AMBIENT-HUM");
+  Log.info("Temp/Hum HUM: " + String(humidity));
 
 }
 
@@ -166,6 +153,7 @@ int DroneAmbientTemp::activeFor(int ms)
 void DroneAmbientTemp::Publish(sensor_event *oEvent)
 {
       oEvent->value = _sensor_event.value;
+      oEvent->acumulatedNotification = _sensor_event.acumulatedNotification;
       //Save LastPublished
       _sensor_event.lastPublishedValue = _sensor_event.value;
 }

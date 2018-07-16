@@ -8,6 +8,7 @@
 
 #include "oBeeRGB.h"
 #include "oBeeSound.h"
+#include "oBeeOled.h"
 #include "Worker.h"
 
 #include "lib/LinkedList.h"
@@ -42,6 +43,7 @@ class oBee
 
         oBeeRGB oRGB;
         oBeeSound oSound;
+        oBeeOled oOled;
 
         void Update();
         //void NotificationComplete();

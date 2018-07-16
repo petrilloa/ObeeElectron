@@ -23,12 +23,21 @@ oBee::oBee()
 
     //TODO: Poner en variable y usar para todo los One_Wire
     //oneWire.Setup(PIN_D12);
+
+    oOled.begin(SSD1306_SWITCHCAPVCC, 0x3C);
+    oOled.display();
 }
+
+
 
 void oBee::Update()
 {
     oRGB.Update();
     oSound.Update();
+
+    oOled.clearDisplay();
+    oOled.drawBitmap(0, 0,  logo_Obee, 128, 32, 1);
+    oOled.display();
 }
 
 void oBee::SetUpDrone(JsonObject& root)
